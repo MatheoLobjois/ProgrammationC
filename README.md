@@ -143,7 +143,7 @@ return m != NULL
     && m->nb_colonnes >= 1 && m->nb_colonnes <= MAT_DIM_MAX;
 ```
 
-L’utilisation de `&&` permet de s’arrêter dès qu’une condition est fausse. Ainsi, si `m == NULL`, les champs de la structure ne sont pas consultés.
+L’utilisation de `&&` permet de s’arrêter dès qu’une condition est fausse et évite donc des opérations inutiles (si l'on avait séparé les tests les uns des autres par exemple). Ainsi, si `m == NULL`, les champs de la structure ne sont pas consultés.
 
 Code source : [`matrice.c`](matrice.c).
 
@@ -151,7 +151,7 @@ Code source : [`matrice.c`](matrice.c).
 
 **Étape 1.c — Refus des dimensions invalides**
 
-Les dimensions sont contrôlées avant toute allocation. Une valeur inférieure à `1` ou supérieure à `MAT_DIM_MAX` entraîne le retour de `MAT_ERR_ARGUMENT`. Comme `*res` a déjà été initialisé à `MATRICE_VIDE`, le résultat reste vide en cas d’erreur.
+Les dimensions sont contrôlées avant toute allocation. Une valeur inférieure à `1` ou supérieure à `MAT_DIM_MAX` entraîne le retour de `MAT_ERR_ARGUMENT`. Comme `*res` a déjà été initialisé à `MATRICE_VIDE` 4 lignes au dessus, le résultat reste vide en cas d’erreur.
 
 ```c
 if (nb_lignes < 1 || nb_lignes > MAT_DIM_MAX
@@ -174,10 +174,13 @@ for (int i = 0; i < nb_lignes; i++) {
     }
 }
 ```
+Le `(size_t)nb_colonnes` est un attendu de calloc pour le nombre d'arguments (pas de `int`, avec `size_t` on empeche les valeurs négatives et évite des soucis de portabilité).
+
+Le second argument réserve la taille attendue en fonction du type pour un coefficient donné.
 
 **Étape 1.e — Validation du résultat**
 
-La structure de sortie n’est renseignée qu’une fois toutes les allocations réussies. La fonction transfère alors la propriété de la mémoire à l’appelant en enregistrant le pointeur et les dimensions, puis renvoie `MAT_OK`.
+La structure de sortie n’est renseignée qu’une fois toutes les allocations réussies. La fonction transfère alors la propriété de la mémoire à l’appelant en enregistrant le pointeur vers les coefficients et les dimensions, puis renvoie `MAT_OK`.
 
 ```c
 res->coef = coef;
@@ -210,7 +213,9 @@ Code source : [`matrice_alloc.c`](matrice_alloc.c).
 
 #### Q3.2 — Combien d’appels à `calloc` et à `free` pour une matrice de taille `n × p` ?
 
-Pour une allocation réussie, `mat_allouer` effectue `n + 1` appels à `calloc` : un pour le tableau de pointeurs et un pour chacune des `n` lignes. La destruction effectue `n + 1` appels à `free`. Si l’allocation d’une ligne échoue après que `k` lignes ont été allouées, la fonction a effectué `k + 2` appels à `calloc` (en comptant l’appel qui échoue), puis libère les `k` lignes déjà allouées et le tableau de pointeurs, soit `k + 1` appels à `free`. Si l’allocation initiale du tableau échoue, un appel à `calloc` a été effectué et aucune libération n’est nécessaire.
+Pour une allocation réussie, `mat_allouer` effectue `n + 1` appels à `calloc` : un pour le tableau de pointeurs et un pour chacune des `n` lignes. La destruction effectue `n + 1` appels à `free`.
+
+Si l’allocation d’une ligne échoue après que `k` lignes ont été allouées, la fonction a effectué `k + 2` appels à `calloc` (en comptant l’appel qui échoue), puis libère les `k` lignes déjà allouées et le tableau de pointeurs, soit `k + 1` appels à `free`. Si l’allocation initiale du tableau échoue, un appel à `calloc` a été effectué et aucune libération n’est nécessaire.
 
 #### Q3.3 — Pourquoi deux appels à `mat_detruire` sont-ils sans danger ? Qu’en est-il d’une copie `Matrice b = a` ?
 
