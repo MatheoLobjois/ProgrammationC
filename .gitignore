@@ -53,3 +53,23 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Exécutables du TD (Linux sans extension)
+test_ex1
+test_ex2
+test_ex3
+demo_matrices
+
+# Fichiers temporaires générés par les tests
+R.txt
+R_*.txt
+R2.txt
+test_ex2_sortie.txt
+avert.txt
+sortie.txt
+
+# Dossiers d'éditeurs et OS
+.vscode/
+.idea/
+__MACOSX/
+.DS_Store
