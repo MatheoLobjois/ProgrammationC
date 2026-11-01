@@ -301,7 +301,7 @@ Les fonctions `mat_lire` et `mat_ecrire` reçoivent un flux déjà ouvert. Elles
 
 #### 2.a — Affichage d’une matrice
 
-La fonction `mat_afficher` affiche le nom de la matrice et ses dimensions. Deux boucles imbriquées parcourent ensuite les lignes et les colonnes. Le format `%8d` réserve huit caractères pour chaque coefficient afin d’aligner les colonnes.
+La fonction `mat_afficher` affiche le nom de la matrice et ses dimensions. Deux boucles imbriquées parcourent ensuite les lignes et les colonnes. Le format `%8d` réserve huit caractères pour chaque coefficient afin d’aligner les colonnes (cela représente une marge assez importante).
 
 ```c
 for (int i = 0; i < m->nb_lignes; i++) {
@@ -316,7 +316,9 @@ for (int i = 0; i < m->nb_lignes; i++) {
 
 La fonction `mat_ecrire` vérifie d’abord que le flux est valide et que la matrice est valide. Elle écrit ensuite les dimensions, puis les coefficients ligne par ligne.
 
-Le premier coefficient de chaque ligne est écrit avec `%d`, et les suivants avec ` %d`. Cela évite de mettre un espace après le dernier coefficient de la ligne. Chaque opération d’écriture est vérifiée : un échec de `fprintf`, de `fputc` ou de `fflush` entraîne le retour de `MAT_ERR_ECRITURE`.
+Le premier coefficient de chaque ligne est écrit avec `"%d"`, et les suivants avec `" %d"`. Cela évite de mettre un espace après le dernier coefficient de la ligne si on les avait espacés classiquement avec `"%d "` ou de décaler inutilement le premier coefficient de chaque ligne avec `" %d"` sans distinction de cas.
+
+Chaque opération d’écriture est vérifiée : un échec de `fprintf`, de `fputc` ou de `fflush` entraîne le retour de `MAT_ERR_ECRITURE`.
 
 ```c
 for (int i = 0; i < m->nb_lignes; i++) {
@@ -394,7 +396,7 @@ L’appelant devient responsable de la mémoire et devra appeler `mat_detruire` 
 
 #### Q4.1 — Pourquoi `mat_lire` remplit-elle d’abord une matrice locale ?
 
-La matrice temporaire évite de transmettre un résultat incomplet à l’appelant. Si une lecture échoue, la fonction détruit la matrice temporaire et renvoie l’erreur. Le paramètre de sortie `*res` reste ainsi égal à `MATRICE_VIDE`. Le transfert n’a lieu que si tous les coefficients ont été lus correctement.
+La matrice temporaire évite de transmettre un résultat incomplet à l’appelant. Si une lecture échoue, la fonction détruit la matrice temporaire et renvoie l’erreur. Le paramètre de sortie `*res` reste ainsi égal à `MATRICE_VIDE`. Le transfert n’a lieu qu'à la fin si tous les coefficients ont été lus correctement.
 
 #### Q4.2 — La lecture impose-t-elle une ligne de texte par ligne de matrice ?
 
@@ -478,7 +480,7 @@ if (err != MAT_OK)
 
 **3.c — Calcul des coefficients et détection du dépassement**
 
-Chaque coefficient du résultat est la somme des coefficients correspondants des deux matrices. La conversion en `long long` est faite avant l’addition afin d’éviter un dépassement de type `int` pendant le calcul. La somme est ensuite vérifiée avec `tient_dans_int`. Si elle ne tient pas dans un `int`, la matrice temporaire est détruite et la fonction renvoie `MAT_ERR_DEPASSEMENT`.
+Chaque coefficient du résultat est la somme des coefficients correspondants des deux matrices. La conversion en `long long` est faite avant l’addition afin d’éviter un dépassement de type `int` pendant le calcul. Cela évite un blocage pendant le calcul et c'est seulement après qu'on compare le résultat avec un int. La somme est ensuite vérifiée avec `tient_dans_int`. Si elle ne tient pas dans un `int`, la matrice temporaire est détruite et la fonction renvoie `MAT_ERR_DEPASSEMENT`.
 
 ```c
 long long s = (long long)a->coef[i][j] + b->coef[i][j];
