@@ -636,3 +636,306 @@ Les 37 allocations ont toutes été libérées. Valgrind confirme l’absence de
 - [x] Valgrind affiche `All heap blocks were freed -- no leaks are possible` et `ERROR SUMMARY: 0 errors from 0 contexts`.
 - [x] Les étapes de calcul de `matrice_calcul.c` sont implémentées, notamment le transfert du résultat dans `mat_additionner` et `mat_multiplier`.
 
+## Réalisation — Exercice 4 : démonstration complète
+
+L’exercice 4 est l'aboutissement du devoir. L'objectif est d'assembler les modules remplis dans les exercices 1 à 3 pour en faire une démonstration.
+
+Le but est dans l'ordre de :
+
+- vérifier les arguments (si erreur EXIT_FAILURE)
+- `*` charger A (ouvrir, lire, fermer)
+- `*` charger B
+- afficher A et B
+- `*` calculer R (addition ou multiplication de A et B)
+- afficher R
+- `*` enregistrer R
+- EXIT_SUCCESS
+
+`*` en cas d'erreur sur ces étapes, on saute directement jusqu'au nettoyage de toutes les matrices
+
+### Addition — étapes 4.a à 4.d
+
+**4.a — Afficher A et B**
+
+Les matrices ont été chargées juste au dessus, on cherche juste à les afficher pour voir leur contenu (côté utilisateur).
+
+```c
+mat_afficher("A", &a);
+mat_afficher("B", &b);
+```
+
+**4.a — Afficher A et B**
+
+Les matrices ont été chargées juste au dessus, on cherche juste à les afficher pour voir leur contenu (côté utilisateur).
+Le premier argument de `mat_afficher` sert d'étiquette lors de l'affichage, le second est l'adresse de nos matrices a et b.
+
+Il n'y a ici pas de vérification d'erreurs car l'affichage ne va pas faire planter le programme.
+
+```c
+mat_afficher("A", &a);
+mat_afficher("B", &b);
+```
+
+**4.b — Calculer le résultat**
+
+La variable `addition` définie plus haut vaut `1` si l'utilisateur a tappé `add` et `0` pour `mul`. On utilise ensuite un opérateur ternaire pour effectuer directement la bonne opération.
+
+Pour afficher le message d'erreur avec les propriétés des matrices on utilise ici `a.nb_colonnes` etc... et non `->` car `a` et `b` sont ici des objets `Matrice` et non des pointeurs, on accède donc ainsi à leurs champs.
+
+On saute ensuite jusqu'à la partie nettoyage pour supprimer `a`, `b` et `r` et éviter une fuite.
+
+```c
+MatErreur err = addition ? mat_additionner(&a, &b, &r)
+                            : mat_multiplier(&a, &b, &r);
+    if (err != MAT_OK) {
+        fprintf(stderr, "Erreur : calcul impossible : %s ", mat_message_erreur(err));
+        fprintf(stderr, "(A : %d x %d, B : %d x %d)\n",
+            a.nb_lignes, a.nb_colonnes, b.nb_lignes, b.nb_colonnes);
+        goto nettoyage;
+    }
+```
+
+**4.c — a**
+
+On affiche la matrice `r` de la même façon qu'à la question `4.a` et on utilise une opération ternaire comme à la question `4.b` pour distinguer les cas d'addition et multiplication.
+
+```c
+mat_afficher(addition ? "R = A + B" : "R = A x B", &r);
+```
+
+**4.d — a**
+
+Une fois l'enregistrement réussi, on confirme l'écriture sur la sortie standard en affichant le nom du fichier de sortie `argv[4]` et on passe statut à EXIT_SUCCESS avant de passer au bloc `nettoyage`.
+
+```c
+printf("Résultat enregistré dans \"%s\".\n", argv[4]);
+statut = EXIT_SUCCESS; 
+```
+
+### Questions de réflexion
+
+#### Q6.1 — Responsable de l'affichage du message d'erreur ?
+Si la bibliothèque est intégrée dans une application graphique où le terminal n'est pas visile, un `fprintf(stderr, ...)` ne serait pas afficher. On laissant l'appelant, ici `main.c`, gérer l'erreur, on laisse le choix à celui qui réutilise la bibliothèque de gérer l'erreur comme il veut.
+
+#### Q6.2 — Où tester `fclose` ?
+Quand on écrit avec fprintf on passe souvent par un tampon avant d'être avant d'ecrire définitivement. C'est lors de l'appel à fclose que le tampon est définitivement vidé et que le système finalise le fichier. On pourrait alors avoir une erreur d'enregistrement car plus d'espace de stockage ou autre. Ne pas tester fclose à ce moment risquerait de faire croire que le fichier est bien enregistré alors que pas forcément.
+Dans charger, si on obtient une erreur, le fichier ne serait pas affecté car on n'a alors rien écrit dedans.
+
+#### Q6.3 — Nombre de matrices libérées ?
+Il faut libérer les trois matrices `a`, `b` et `r` car on a déjà allouer de l'espace à ces matrices avant que la sauvegarde n'échoue.
+
+Notre programme le fait bien puisqu'on saute jusqu'à `nettoyage` en cas d'erreur de sauvegarde avec `goto nettoyage;`.
+
+### Compilation et tests de l’exercice 4
+
+Commande utilisée pour compiler les cinq fichiers .c ensemble:
+
+```sh
+gcc -std=c11 -Wall -Wextra -Wpedantic -g \
+    main.c matrice.c matrice_alloc.c matrice_io.c matrice_calcul.c \
+    -o demo_matrices
+./demo_matrices add donnees/A.txt donnees/B.txt R.txt
+
+```
+
+Exécution et contrôle mémoire :
+
+```sh
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (4 x 3) :
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
+R = A + B (4 x 3) :
+       26       50       87
+       19       38       17
+       52       96       19
+       10       23        7
+Résultat enregistré dans "R.txt".
+```
+
+et le fichier `R.txt` contient bien :
+```txt
+4 3
+26 50 87
+19 38 17
+52 96 19
+10 23 7
+```
+
+**Résultat obtenu Scénario 1** 
+```text
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (4 x 3) :
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
+R = A + B (4 x 3) :
+       26       50       87
+       19       38       17
+       52       96       19
+       10       23        7
+Résultat enregistré dans "R_add.txt".
+Code de sortie : 0
+```
+
+**Résultat obtenu Scénario 2** 
+```text
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (3 x 2) :
+        1        0
+        0        1
+        2       -1
+R = A x B (4 x 2) :
+      193      -36
+       37       22
+       65       78
+      -10       17
+Résultat enregistré dans "R_mul.txt".
+Code de sortie : 0
+```
+
+**Résultat obtenu Scénario 3** 
+```text
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (3 x 2) :
+        1        0
+        0        1
+        2       -1
+Erreur : calcul impossible : dimensions incompatibles (A : 4 x 3, B : 3 x 2)
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 4** 
+```text
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (4 x 3) :
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
+Erreur : calcul impossible : dimensions incompatibles (A : 4 x 3, B : 4 x 3)
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 5** 
+```text
+Erreur : impossible d'ouvrir "donnees/absent.txt" : No such file or directory
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 6** 
+```text
+Erreur : lecture de "donnees/invalide.txt" : fichier mal formé
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 7** 
+```text
+Erreur : lecture de "donnees/tronque.txt" : fichier mal formé
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 8** 
+```text
+A (4 x 3) :
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
+B (4 x 3) :
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
+R = A + B (4 x 3) :
+       26       50       87
+       19       38       17
+       52       96       19
+       10       23        7
+Erreur : impossible de créer "dossier_inexistant/R.txt" : No such file or directory
+Code de sortie : 1
+```
+
+**Résultat obtenu Scénario 9** 
+```text
+=== Exercice 1 : matrice.c ===
+[OK]    (1.a) message pour MAT_ERR_DIMENSIONS
+[OK]    (1.a) message pour MAT_ERR_DEPASSEMENT
+[OK]    (1.b) une matrice 1 x 2 est valide
+[OK]    (1.b) NULL n'est pas valide
+[OK]    (1.b) MATRICE_VIDE n'est pas valide
+[OK]    (1.b) une matrice de 0 ligne n'est pas valide
+=== Exercice 1 : matrice_alloc.c ===
+[OK]    (1.c) mat_allouer refuse 0 ligne
+[OK]    (1.c) mat_allouer refuse -2 colonnes
+[OK]    (1.c) mat_allouer refuse une dimension > MAT_DIM_MAX
+[OK]    (1.e) mat_allouer(&m, 3, 4) renvoie MAT_OK
+[OK]    (1.e) m a 3 lignes et 4 colonnes
+[OK]    (1.d) tous les coefficients valent 0
+[OK]    (1.f) apres mat_detruire, m est vide
+[OK]    (1.f) un second mat_detruire est sans danger
+[OK]    (1.f) mat_detruire(NULL) ne plante pas
+=== Exercice 1 : echecs d'allocation simules ===
+[OK]    (1.d) chaque echec renvoie MAT_ERR_ALLOCATION et laisse *res vide
+
+Bilan : 16 / 16 verifications reussies.
+Pensez a verifier l'absence de fuite : valgrind --leak-check=full ./test_ex1
+```
+
+Résultats obtenus avec `valgrind`:
+```text
+==284== 
+==284== HEAP SUMMARY:
+==284==     in use at exit: 0 bytes in 0 blocks
+==284==   total heap usage: 11 allocs, 11 frees, 1,228 bytes allocated
+==284== 
+==284== All heap blocks were freed -- no leaks are possible
+==284== 
+==284== For lists of detected and suppressed errors, rerun with: -s
+==284== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+```
+
+On a donc bien pas de fuite.
+
+
+**Résultat obtenu Scénario 10** 
+```text
+Usage : C:\Users\oscar\Documents\Projet_C\ProgrammationC\demo_matrices.exe <add|mul> <fichier_A> <fichier_B> <fichier_R>
+Code de sortie : 1
+Usage : C:\Users\oscar\Documents\Projet_C\ProgrammationC\demo_matrices.exe <add|mul> <fichier_A> <fichier_B> <fichier_R>
+Code de sortie : 1
+```
+
+
+### Critères de validation de l’exercice 4
+
+
+- Compilation sans aucun avertissement avec `-std=c11 -Wall -Wextra -Wpedantic`.
+- `main.c` n'inclut que les fichiers `.h` et aucun autre module n'a de fonction `main`.
+- Les 10 scénarios de test ont été lancés et donnent bien les erreurs ou résultats attendus (avec les bons codes de retour 0 ou 1).
+- Le fichier `R.txt` généré au scénario 1 est bien réutilisable en entrée (`./demo_matrices add R.txt R.txt R2.txt` fonctionne sans erreur).
+- Aucune fuite mémoire ni accès invalide sous `valgrind` (`All heap blocks were freed -- no leaks are possible`).
+- Les 3 fichiers de tests (`test_ex1`, `test_ex2`, `test_ex3`) passent tous à 100% (`[OK]`).
